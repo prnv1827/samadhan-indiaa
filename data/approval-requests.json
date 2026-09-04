@@ -1,0 +1,62 @@
+[
+  {
+    "id": "r-1788533365524-df91c2",
+    "type": "completion",
+    "status": "approved",
+    "title": "Completion proof: garbage collection not happening properly",
+    "message": "TATA says the collaborative work is complete and submitted proof for final Admin verification.",
+    "requesterName": "Pranav Singh",
+    "requesterEmail": "pranavsingh18@gmail.com",
+    "requesterRole": "industry",
+    "organization": "TATA",
+    "challengeId": "c-1788533149196-9eb4e0",
+    "createdAt": "2026-09-04T14:49:25.524Z",
+    "reviewedAt": "2026-09-04T14:50:07.921Z",
+    "reviewedBy": "admin@samadhan.local"
+  },
+  {
+    "id": "r-1788533252973-4dcfe0",
+    "type": "solution_submission",
+    "status": "approved",
+    "title": "Solution submission: blaablaablaablaablaablaablaablaa",
+    "message": "NIET submitted a solution for “garbage collection not happening properly”.",
+    "requesterName": "Pranav Singh",
+    "requesterEmail": "pranavsingh@niet.ac.in",
+    "requesterRole": "university",
+    "organization": "NIET",
+    "challengeId": "c-1788533149196-9eb4e0",
+    "createdAt": "2026-09-04T14:47:32.974Z",
+    "reviewedAt": "2026-09-04T14:48:08.133Z",
+    "reviewedBy": "admin@samadhan.local"
+  },
+  {
+    "id": "r-1788533215604-d07d6e",
+    "type": "team_application",
+    "status": "approved",
+    "title": "University team application: NIET Innovation Team",
+    "message": "Pranav Singh from NIET applied to work on “garbage collection not happening properly”.",
+    "requesterName": "Pranav Singh",
+    "requesterEmail": "pranavsingh@niet.ac.in",
+    "requesterRole": "university",
+    "organization": "NIET",
+    "challengeId": "c-1788533149196-9eb4e0",
+    "includesSolution": false,
+    "createdAt": "2026-09-04T14:46:55.604Z",
+    "reviewedAt": "2026-09-04T14:47:21.380Z",
+    "reviewedBy": "admin@samadhan.local"
+  },
+  {
+    "id": "r-1788533149235-487da8",
+    "type": "challenge",
+    "status": "approved",
+    "title": "New challenge: garbage collection not happening properly",
+    "message": "Pranav Singh submitted a new challenge for Admin review.",
+    "requesterName": "Pranav Singh",
+    "requesterEmail": "pranavsingh1806@gmail.com",
+    "requesterRole": "citizen",
+    "challengeId": "c-1788533149196-9eb4e0",
+    "createdAt": "2026-09-04T14:45:49.235Z",
+    "reviewedAt": "2026-09-04T14:45:57.682Z",
+    "reviewedBy": "admin@samadhan.local"
+  }
+]
