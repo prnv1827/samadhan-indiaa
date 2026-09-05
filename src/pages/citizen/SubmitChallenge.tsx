@@ -14,30 +14,698 @@ export function SubmitChallenge(){
  const{user}=useAuth();
  const{addChallenge,duplicateCheck,supportChallenge}=useChallenges();
  const navigate=useNavigate();
- const[title,setTitle]=useState(''); const[description,setDescription]=useState(''); const[domain,setDomain]=useState(''); const[manualDomain,setManualDomain]=useState(false);
- const[state,setState]=useState(user?.state||''); const[district,setDistrict]=useState(user?.district||''); const[city,setCity]=useState(''); const[pincode,setPincode]=useState('');
- const[coords,setCoords]=useState<{lat:number;lon:number;accuracy?:number}|null>(null); const[locating,setLocating]=useState(false); const[locationMessage,setLocationMessage]=useState('');
- const[mediaUrl,setMediaUrl]=useState(''); const[mediaType,setMediaType]=useState<'image'|'video'|''>(''); const[mediaName,setMediaName]=useState(''); const[mediaError,setMediaError]=useState('');
- const[checkingDuplicate,setCheckingDuplicate]=useState(false); const[duplicate,setDuplicate]=useState<{challenge:any;similarity:number}|null>(null); const[supportingDuplicate,setSupportingDuplicate]=useState(false);
- const[pending,setPending]=useState(false); const[error,setError]=useState(''); const[submitted,setSubmitted]=useState<{id:string;reference:string}|null>(null);
- const priority=useMemo(()=>recommendPriority(title,description),[title,description]);
- const suggestion=useMemo(()=>suggestDomain(`${title} ${description}`),[title,description]);
- useEffect(()=>{if(suggestion&&!manualDomain)setDomain(suggestion.domain)},[suggestion,manualDomain]);
- const useLocation=()=>{if(!navigator.geolocation){setLocationMessage('Your browser does not support live location.');return;}setLocating(true);setLocationMessage('Getting your current location…');navigator.geolocation.getCurrentPosition(async pos=>{const{latitude,longitude,accuracy}=pos.coords;setCoords({lat:latitude,lon:longitude,accuracy});try{const r=await fetch(`/api/geocode?lat=${latitude}&lon=${longitude}`);if(!r.ok)throw new Error();const d=await r.json();const a=d.address||{};setState(a.state||'');setDistrict(a.state_district||a.county||a.city_district||'');setCity(a.city||a.town||a.village||a.municipality||a.suburb||'');setPincode(a.postcode||'');setLocationMessage(`Location found: ${a.city||a.town||a.village||'current area'}, ${a.state||'India'}`);}catch{setLocationMessage('Coordinates captured, but address lookup failed. You can complete the fields manually.');}finally{setLocating(false)}},()=>{setLocating(false);setLocationMessage('Location permission was denied. Enter your location manually.');},{enableHighAccuracy:true,timeout:15000,maximumAge:0});};
- const handleMedia=(file?:File)=>{setMediaError('');if(!file){setMediaUrl('');setMediaType('');setMediaName('');return;}const isImage=file.type.startsWith('image/'),isVideo=file.type.startsWith('video/');if(!isImage&&!isVideo){setMediaError('Please choose an image or video file.');return;}const max=isImage?8:12;if(file.size>max*1024*1024){setMediaError(`Please keep ${isImage?'images':'videos'} under ${max} MB.`);return;}const reader=new FileReader();reader.onload=()=>{setMediaUrl(String(reader.result||''));setMediaType(isImage?'image':'video');setMediaName(file.name);};reader.onerror=()=>setMediaError('Could not read that file. Please try another one.');reader.readAsDataURL(file);};
- const checkForDuplicate=async()=>{if(title.trim().length<4||description.trim().length<10||!state||district.trim().length<2)return;setCheckingDuplicate(true);setDuplicate(null);try{const r=await duplicateCheck({title:title.trim(),description:description.trim(),state,district:district.trim()});if(r.duplicateChallenge)setDuplicate({challenge:r.duplicateChallenge,similarity:r.similarity||0});}finally{setCheckingDuplicate(false)}};
- useEffect(()=>{if(title.trim().length<4||description.trim().length<10||!state||district.trim().length<2){setDuplicate(null);return;}const timer=window.setTimeout(()=>{void checkForDuplicate();},650);return()=>window.clearTimeout(timer);},[title,description,state,district]);
- const supportExisting=async()=>{if(!duplicate||supportingDuplicate)return;setSupportingDuplicate(true);try{await supportChallenge(duplicate.challenge.id);navigate(`/citizen/submissions/${duplicate.challenge.id}`);}catch(e){setError(e instanceof Error?e.message:'Unable to support the existing problem.')}finally{setSupportingDuplicate(false)}};
- const submit=async(e:React.FormEvent)=>{e.preventDefault();setError('');if(title.trim().length<12||description.trim().length<40||!domain||!state||district.trim().length<2||city.trim().length<2||!/^[1-9][0-9]{5}$/.test(pincode)){setError('Please complete the title, description, domain and full Indian location (state, district, city and 6-digit pincode).');return;}setPending(true);try{const c=await addChallenge({title:title.trim(),description:description.trim(),domain,country:'India',state,district:district.trim(),city:city.trim(),pincode,latitude:coords?.lat,longitude:coords?.lon,locationAccuracy:coords?.accuracy,mediaUrl,mediaType:mediaType||undefined});setSubmitted({id:c.id,reference:c.reference});}catch(e){const err=e as Error;setError(err.message||'Submission failed.');}finally{setPending(false)}};
- if(submitted)return <div className="mx-auto max-w-2xl py-8"><CheckCircle2Icon className="h-10 w-10 text-status-resolved"/><h1 className="mt-5 font-serif text-3xl font-semibold">Submitted for Admin approval</h1><p className="mt-3 text-base text-ink-soft">Reference <span className="font-mono font-semibold">{submitted.reference}</span>. Your report is now in the live Admin queue. Nothing is published as approved until the sole Admin reviews it.</p><div className="mt-6 flex items-center gap-3"><StatusBadge status="pending"/><span className="text-sm text-ink-muted">{domain} · {city}, {state}</span></div><div className="mt-8 flex gap-3"><ButtonLink to={`/citizen/submissions/${submitted.id}`}>View submission</ButtonLink><Button variant="secondary" onClick={()=>{setSubmitted(null);setTitle('');setDescription('');setDomain('');setManualDomain(false);setCity('');setDistrict('');setPincode('');setCoords(null);setMediaUrl('');setMediaType('');setMediaName('');setDuplicate(null);setError('');}}>Report another</Button></div></div>;
- return <div><header className="max-w-2xl"><h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Report a challenge anywhere in India</h1><p className="mt-3 text-base leading-relaxed text-ink-soft">Describe the problem, add photo/video evidence and the real location. Before creating a new report, Samadhan checks whether the same problem is already on the platform.</p></header><form onSubmit={submit} className="mt-10 max-w-3xl space-y-7">
-  <div><Label htmlFor="title" hint={`${title.length}/120`}>Title</Label><Input id="title" maxLength={120} value={title} onChange={e=>{setTitle(e.target.value);setDuplicate(null)}} placeholder="Garbage collection not happening regularly"/></div>
-  <div><Label htmlFor="description" hint={`${description.length}/1200`}>What is happening?</Label><Textarea id="description" rows={7} maxLength={1200} value={description} onChange={e=>{setDescription(e.target.value);setDuplicate(null)}} placeholder="Explain what is happening, since when, who is affected, and any useful evidence."/></div>
-  <div className="rounded-card border border-line bg-surface p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">Smart review hint</p><p className="mt-1 text-sm font-semibold text-ink">{priority.label}</p><p className="mt-1 text-xs text-ink-muted">{priority.reason}</p></div>
-  <div><Label htmlFor="evidence">Problem evidence <span className="text-ink-muted">(required)</span></Label><p className="mb-3 text-sm text-ink-muted">Upload a clear picture or short video of the problem. Images up to 8 MB and videos up to 12 MB.</p><input id="evidence" type="file" accept="image/*,video/*" onChange={e=>handleMedia(e.target.files?.[0])} className="block w-full rounded-card border border-line bg-surface px-3 py-3 text-sm"/>{mediaName&&<div className="mt-3 flex items-center gap-2 rounded-card border border-forest-200 bg-forest-50 px-3 py-2 text-sm text-forest-700">{mediaType==='video'?<VideoIcon className="h-4 w-4"/>:<FileImageIcon className="h-4 w-4"/>}<span className="truncate">{mediaName}</span><button type="button" className="ml-auto text-xs font-semibold underline" onClick={()=>handleMedia()}>Remove</button></div>}{mediaError&&<p className="mt-2 text-sm text-clay-600">{mediaError}</p>}{mediaUrl&&mediaType==='image'&&<img src={mediaUrl} alt="Preview of uploaded problem evidence" className="mt-3 max-h-64 w-full rounded-card object-cover"/>}{mediaUrl&&mediaType==='video'&&<video src={mediaUrl} controls className="mt-3 max-h-64 w-full rounded-card"/>}</div>
-  <div><Label htmlFor="domain">Problem domain</Label>{suggestion&&!manualDomain&&<div className="mb-2 flex items-center gap-2 rounded-card border border-forest-200 bg-forest-50 px-3 py-2 text-sm text-forest-700"><SparklesIcon className="h-4 w-4"/><span>AI-style keyword recommendation: <strong>{suggestion.domain}</strong> ({suggestion.confidence}%)</span><button type="button" className="ml-auto text-xs font-semibold underline" onClick={()=>setManualDomain(true)}>Choose manually</button></div>}<Select id="domain" value={domain} onChange={e=>{setDomain(e.target.value);setManualDomain(true)}}><option value="">Select a domain</option>{domains.map(d=><option key={d}>{d}</option>)}</Select></div>
-  <fieldset><legend className="text-sm font-semibold">Live location</legend><p className="mt-1 text-sm text-ink-muted">Use your browser's current GPS position or enter the location manually.</p><Button type="button" variant="secondary" className="mt-3" onClick={useLocation} disabled={locating}><CrosshairIcon className="h-4 w-4"/>{locating?'Locating…':'Use my current location'}</Button>{locationMessage&&<p className="mt-2 text-xs text-ink-muted" aria-live="polite">{locationMessage}</p>}<div className="mt-4 grid gap-4 sm:grid-cols-2"><div><Label htmlFor="state">State / UT</Label><Select id="state" value={state} onChange={e=>{setState(e.target.value);setDuplicate(null)}}><option value="">Select state / UT</option>{states.map(s=><option key={s}>{s}</option>)}</Select></div><div><Label htmlFor="district">District</Label><Input id="district" value={district} onChange={e=>{setDistrict(e.target.value);setDuplicate(null)}} placeholder="District name"/></div><div><Label htmlFor="city">Village / ward / town / city</Label><Input id="city" value={city} onChange={e=>setCity(e.target.value)} placeholder="Locality"/></div><div><Label htmlFor="pincode">Pincode</Label><Input id="pincode" inputMode="numeric" maxLength={6} value={pincode} onChange={e=>setPincode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="6-digit pincode"/></div></div></fieldset>
-  <div className="rounded-card border border-dashed border-forest-200 bg-forest-50/60 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-ink">Already reported?</p><p className="mt-1 text-sm text-ink-soft">Check the title, description and district against existing reports before creating another one.</p></div><Button type="button" variant="secondary" onClick={checkForDuplicate} disabled={checkingDuplicate}>{checkingDuplicate?<Loader2Icon className="h-4 w-4 animate-spin"/>:null}{checkingDuplicate?'Checking…':'Check for existing problem'}</Button></div>{duplicate&&<div className="mt-4 rounded-card border border-line bg-surface p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.12em] text-clay-600">Possible duplicate found · {duplicate.similarity}% match</p><h3 className="mt-1 font-serif text-xl font-semibold text-ink">{duplicate.challenge.title}</h3><p className="mt-1 text-sm text-ink-muted">{duplicate.challenge.city}, {duplicate.challenge.district} · {duplicate.challenge.supporters} support{duplicate.challenge.supporters===1?'':'s'}</p></div>{duplicate.challenge.priority?.level==='high'&&<span className="rounded-full bg-clay-100 px-3 py-1 text-xs font-bold text-clay-700">HIGH PRIORITY</span>}</div><p className="mt-3 text-sm leading-relaxed text-ink-soft">{duplicate.challenge.description}</p><div className="mt-4 flex flex-wrap gap-3"><Button type="button" onClick={supportExisting} disabled={supportingDuplicate}><HeartIcon className="h-4 w-4"/>{supportingDuplicate?'Supporting…':'Support this problem instead'}</Button><Button type="button" variant="secondary" onClick={()=>navigate(`/citizen/submissions/${duplicate.challenge.id}`)}>Open existing problem</Button></div></div>}</div>
-  {error&&<div role="alert"><FieldError>{error}</FieldError></div>}<Button type="submit" size="lg" disabled={pending}>{pending&&<Loader2Icon className="h-4 w-4 animate-spin"/>}{pending?'Submitting…':'Submit for Admin approval'}</Button>
- </form></div>;
+
+ const[title,setTitle]=useState('');
+ const[description,setDescription]=useState('');
+ const[domain,setDomain]=useState('');
+ const[manualDomain,setManualDomain]=useState(false);
+
+ const[state,setState]=useState(user?.state||'');
+ const[district,setDistrict]=useState(user?.district||'');
+ const[city,setCity]=useState('');
+ const[pincode,setPincode]=useState('');
+
+ const[coords,setCoords]=useState<{lat:number;lon:number;accuracy?:number}|null>(null);
+ const[locating,setLocating]=useState(false);
+ const[locationMessage,setLocationMessage]=useState('');
+
+ const[mediaUrl,setMediaUrl]=useState('');
+ const[mediaType,setMediaType]=useState<'image'|'video'|''>('');
+ const[mediaName,setMediaName]=useState('');
+ const[mediaError,setMediaError]=useState('');
+
+ const[checkingDuplicate,setCheckingDuplicate]=useState(false);
+ const[duplicate,setDuplicate]=useState<{challenge:any;similarity:number}|null>(null);
+ const[supportingDuplicate,setSupportingDuplicate]=useState(false);
+
+ const[pending,setPending]=useState(false);
+ const[error,setError]=useState('');
+ const[submitted,setSubmitted]=useState<{id:string;reference:string}|null>(null);
+
+ const priority=useMemo(
+   ()=>recommendPriority(title,description),
+   [title,description]
+ );
+
+ // DOMAIN IS NOW SELECTED/SUGGESTED USING TITLE ONLY
+ const suggestion=useMemo(
+   ()=>suggestDomain(title),
+   [title]
+ );
+
+ useEffect(()=>{
+   if(suggestion&&!manualDomain)
+     setDomain(suggestion.domain);
+ },[suggestion,manualDomain]);
+
+ const useLocation=()=>{
+   if(!navigator.geolocation){
+     setLocationMessage('Your browser does not support live location.');
+     return;
+   }
+
+   setLocating(true);
+   setLocationMessage('Getting your current location…');
+
+   navigator.geolocation.getCurrentPosition(
+     async pos=>{
+       const{latitude,longitude,accuracy}=pos.coords;
+       setCoords({lat:latitude,lon:longitude,accuracy});
+
+       try{
+         const r=await fetch(`/api/geocode?lat=${latitude}&lon=${longitude}`);
+         if(!r.ok)throw new Error();
+
+         const d=await r.json();
+         const a=d.address||{};
+
+         setState(a.state||'');
+         setDistrict(a.state_district||a.county||a.city_district||'');
+         setCity(a.city||a.town||a.village||a.municipality||a.suburb||'');
+         setPincode(a.postcode||'');
+
+         setLocationMessage(
+           `Location found: ${a.city||a.town||a.village||'current area'}, ${a.state||'India'}`
+         );
+       }catch{
+         setLocationMessage(
+           'Coordinates captured, but address lookup failed. You can complete the fields manually.'
+         );
+       }finally{
+         setLocating(false);
+       }
+     },
+     ()=>{
+       setLocating(false);
+       setLocationMessage(
+         'Location permission was denied. Enter your location manually.'
+       );
+     },
+     {
+       enableHighAccuracy:true,
+       timeout:15000,
+       maximumAge:0
+     }
+   );
+ };
+
+ const handleMedia=(file?:File)=>{
+   setMediaError('');
+
+   if(!file){
+     setMediaUrl('');
+     setMediaType('');
+     setMediaName('');
+     return;
+   }
+
+   const isImage=file.type.startsWith('image/');
+   const isVideo=file.type.startsWith('video/');
+
+   if(!isImage&&!isVideo){
+     setMediaError('Please choose an image or video file.');
+     return;
+   }
+
+   const max=isImage?8:12;
+
+   if(file.size>max*1024*1024){
+     setMediaError(
+       `Please keep ${isImage?'images':'videos'} under ${max} MB.`
+     );
+     return;
+   }
+
+   const reader=new FileReader();
+
+   reader.onload=()=>{
+     setMediaUrl(String(reader.result||''));
+     setMediaType(isImage?'image':'video');
+     setMediaName(file.name);
+   };
+
+   reader.onerror=()=>{
+     setMediaError(
+       'Could not read that file. Please try another one.'
+     );
+   };
+
+   reader.readAsDataURL(file);
+ };
+
+ const checkForDuplicate=async()=>{
+   if(
+     title.trim().length<4||
+     description.trim().length<10||
+     !state||
+     district.trim().length<2
+   )return;
+
+   setCheckingDuplicate(true);
+   setDuplicate(null);
+
+   try{
+     const r=await duplicateCheck({
+       title:title.trim(),
+       description:description.trim(),
+       state,
+       district:district.trim()
+     });
+
+     if(r.duplicateChallenge)
+       setDuplicate({
+         challenge:r.duplicateChallenge,
+         similarity:r.similarity||0
+       });
+   }finally{
+     setCheckingDuplicate(false);
+   }
+ };
+
+ useEffect(()=>{
+   if(
+     title.trim().length<4||
+     description.trim().length<10||
+     !state||
+     district.trim().length<2
+   ){
+     setDuplicate(null);
+     return;
+   }
+
+   const timer=window.setTimeout(()=>{
+     void checkForDuplicate();
+   },650);
+
+   return()=>window.clearTimeout(timer);
+ },[title,description,state,district]);
+
+ const supportExisting=async()=>{
+   if(!duplicate||supportingDuplicate)return;
+
+   setSupportingDuplicate(true);
+
+   try{
+     await supportChallenge(duplicate.challenge.id);
+     navigate(`/citizen/submissions/${duplicate.challenge.id}`);
+   }catch(e){
+     setError(
+       e instanceof Error
+         ? e.message
+         : 'Unable to support the existing problem.'
+     );
+   }finally{
+     setSupportingDuplicate(false);
+   }
+ };
+
+ const submit=async(e:React.FormEvent)=>{
+   e.preventDefault();
+   setError('');
+
+   if(
+     title.trim().length<12||
+     description.trim().length<40||
+     !domain||
+     !state||
+     district.trim().length<2||
+     city.trim().length<2||
+     !/^[1-9][0-9]{5}$/.test(pincode)
+   ){
+     setError(
+       'Please complete the title, description, domain and full Indian location (state, district, city and 6-digit pincode).'
+     );
+     return;
+   }
+
+   setPending(true);
+
+   try{
+     const c=await addChallenge({
+       title:title.trim(),
+       description:description.trim(),
+       domain,
+       country:'India',
+       state,
+       district:district.trim(),
+       city:city.trim(),
+       pincode,
+       latitude:coords?.lat,
+       longitude:coords?.lon,
+       locationAccuracy:coords?.accuracy,
+       mediaUrl,
+       mediaType:mediaType||undefined
+     });
+
+     setSubmitted({
+       id:c.id,
+       reference:c.reference
+     });
+   }catch(e){
+     const err=e as Error;
+     setError(err.message||'Submission failed.');
+   }finally{
+     setPending(false);
+   }
+ };
+
+ if(submitted)
+   return(
+     <div className="mx-auto max-w-2xl py-8">
+       <CheckCircle2Icon className="h-10 w-10 text-status-resolved"/>
+
+       <h1 className="mt-5 font-serif text-3xl font-semibold">
+         Submitted for Admin approval
+       </h1>
+
+       <p className="mt-3 text-base text-ink-soft">
+         Reference{' '}
+         <span className="font-mono font-semibold">
+           {submitted.reference}
+         </span>.
+         Your report is now in the live Admin queue.
+         Nothing is published as approved until the sole Admin reviews it.
+       </p>
+
+       <div className="mt-6 flex items-center gap-3">
+         <StatusBadge status="pending"/>
+         <span className="text-sm text-ink-muted">
+           {domain} · {city}, {state}
+         </span>
+       </div>
+
+       <div className="mt-8 flex gap-3">
+         <ButtonLink to={`/citizen/submissions/${submitted.id}`}>
+           View submission
+         </ButtonLink>
+
+         <Button
+           variant="secondary"
+           onClick={()=>{
+             setSubmitted(null);
+             setTitle('');
+             setDescription('');
+             setDomain('');
+             setManualDomain(false);
+             setCity('');
+             setDistrict('');
+             setPincode('');
+             setCoords(null);
+             setMediaUrl('');
+             setMediaType('');
+             setMediaName('');
+             setDuplicate(null);
+             setError('');
+           }}
+         >
+           Report another
+         </Button>
+       </div>
+     </div>
+   );
+
+ return(
+   <div>
+     <header className="max-w-2xl">
+       <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+         Report a challenge anywhere in India
+       </h1>
+
+       <p className="mt-3 text-base leading-relaxed text-ink-soft">
+         Describe the problem, add photo/video evidence and the real location.
+         Before creating a new report, Samadhan checks whether the same problem
+         is already on the platform.
+       </p>
+     </header>
+
+     <form onSubmit={submit} className="mt-10 max-w-3xl space-y-7">
+
+       <div>
+         <Label htmlFor="title" hint={`${title.length}/120`}>
+           Title
+         </Label>
+
+         <Input
+           id="title"
+           maxLength={120}
+           value={title}
+           onChange={e=>{
+             setTitle(e.target.value);
+             setDuplicate(null);
+           }}
+           placeholder="Garbage collection not happening regularly"
+         />
+       </div>
+
+       <div>
+         <Label htmlFor="description" hint={`${description.length}/1200`}>
+           What is happening?
+         </Label>
+
+         <Textarea
+           id="description"
+           rows={7}
+           maxLength={1200}
+           value={description}
+           onChange={e=>{
+             setDescription(e.target.value);
+             setDuplicate(null);
+           }}
+           placeholder="Explain what is happening, since when, who is affected, and any useful evidence."
+         />
+       </div>
+
+       <div className="rounded-card border border-line bg-surface p-4">
+         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+           Smart review hint
+         </p>
+
+         <p className="mt-1 text-sm font-semibold text-ink">
+           {priority.label}
+         </p>
+
+         <p className="mt-1 text-xs text-ink-muted">
+           {priority.reason}
+         </p>
+       </div>
+
+       <div>
+         <Label htmlFor="evidence">
+           Problem evidence <span className="text-ink-muted">(required)</span>
+         </Label>
+
+         <p className="mb-3 text-sm text-ink-muted">
+           Upload a clear picture or short video of the problem.
+           Images up to 8 MB and videos up to 12 MB.
+         </p>
+
+         <input
+           id="evidence"
+           type="file"
+           accept="image/*,video/*"
+           onChange={e=>handleMedia(e.target.files?.[0])}
+           className="block w-full rounded-card border border-line bg-surface px-3 py-3 text-sm"
+         />
+
+         {mediaName&&(
+           <div className="mt-3 flex items-center gap-2 rounded-card border border-forest-200 bg-forest-50 px-3 py-2 text-sm text-forest-700">
+             {mediaType==='video'
+               ?<VideoIcon className="h-4 w-4"/>
+               :<FileImageIcon className="h-4 w-4"/>
+             }
+
+             <span className="truncate">{mediaName}</span>
+
+             <button
+               type="button"
+               className="ml-auto text-xs font-semibold underline"
+               onClick={()=>handleMedia()}
+             >
+               Remove
+             </button>
+           </div>
+         )}
+
+         {mediaError&&(
+           <p className="mt-2 text-sm text-clay-600">
+             {mediaError}
+           </p>
+         )}
+
+         {mediaUrl&&mediaType==='image'&&(
+           <img
+             src={mediaUrl}
+             alt="Preview of uploaded problem evidence"
+             className="mt-3 max-h-64 w-full rounded-card object-cover"
+           />
+         )}
+
+         {mediaUrl&&mediaType==='video'&&(
+           <video
+             src={mediaUrl}
+             controls
+             className="mt-3 max-h-64 w-full rounded-card"
+           />
+         )}
+       </div>
+
+       <div>
+         <Label htmlFor="domain">
+           Problem domain
+         </Label>
+
+         {suggestion&&!manualDomain&&(
+           <div className="mb-2 flex items-center gap-2 rounded-card border border-forest-200 bg-forest-50 px-3 py-2 text-sm text-forest-700">
+             <SparklesIcon className="h-4 w-4"/>
+
+             <span>
+               AI-style keyword recommendation:{' '}
+               <strong>{suggestion.domain}</strong>{' '}
+               ({suggestion.confidence}%)
+             </span>
+
+             <button
+               type="button"
+               className="ml-auto text-xs font-semibold underline"
+               onClick={()=>setManualDomain(true)}
+             >
+               Choose manually
+             </button>
+           </div>
+         )}
+
+         <Select
+           id="domain"
+           value={domain}
+           onChange={e=>{
+             setDomain(e.target.value);
+             setManualDomain(true);
+           }}
+         >
+           <option value="">Select a domain</option>
+
+           {domains.map(d=>(
+             <option key={d}>{d}</option>
+           ))}
+         </Select>
+       </div>
+
+       <fieldset>
+         <legend className="text-sm font-semibold">
+           Live location
+         </legend>
+
+         <p className="mt-1 text-sm text-ink-muted">
+           Use your browser's current GPS position or enter the location manually.
+         </p>
+
+         <Button
+           type="button"
+           variant="secondary"
+           className="mt-3"
+           onClick={useLocation}
+           disabled={locating}
+         >
+           <CrosshairIcon className="h-4 w-4"/>
+           {locating?'Locating…':'Use my current location'}
+         </Button>
+
+         {locationMessage&&(
+           <p className="mt-2 text-xs text-ink-muted" aria-live="polite">
+             {locationMessage}
+           </p>
+         )}
+
+         <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+           <div>
+             <Label htmlFor="state">
+               State / UT
+             </Label>
+
+             <Select
+               id="state"
+               value={state}
+               onChange={e=>{
+                 setState(e.target.value);
+                 setDuplicate(null);
+               }}
+             >
+               <option value="">Select state / UT</option>
+               {states.map(s=>(
+                 <option key={s}>{s}</option>
+               ))}
+             </Select>
+           </div>
+
+           <div>
+             <Label htmlFor="district">
+               District
+             </Label>
+
+             <Input
+               id="district"
+               value={district}
+               onChange={e=>{
+                 setDistrict(e.target.value);
+                 setDuplicate(null);
+               }}
+               placeholder="District name"
+             />
+           </div>
+
+           <div>
+             <Label htmlFor="city">
+               Village / ward / town / city
+             </Label>
+
+             <Input
+               id="city"
+               value={city}
+               onChange={e=>setCity(e.target.value)}
+               placeholder="Locality"
+             />
+           </div>
+
+           <div>
+             <Label htmlFor="pincode">
+               Pincode
+             </Label>
+
+             <Input
+               id="pincode"
+               inputMode="numeric"
+               maxLength={6}
+               value={pincode}
+               onChange={e=>
+                 setPincode(
+                   e.target.value.replace(/\D/g,'').slice(0,6)
+                 )
+               }
+               placeholder="6-digit pincode"
+             />
+           </div>
+
+         </div>
+       </fieldset>
+
+       <div className="rounded-card border border-dashed border-forest-200 bg-forest-50/60 p-4">
+         <div className="flex flex-wrap items-center justify-between gap-3">
+
+           <div>
+             <p className="font-semibold text-ink">
+               Already reported?
+             </p>
+
+             <p className="mt-1 text-sm text-ink-soft">
+               Check the title, description and district against existing
+               reports before creating another one.
+             </p>
+           </div>
+
+           <Button
+             type="button"
+             variant="secondary"
+             onClick={checkForDuplicate}
+             disabled={checkingDuplicate}
+           >
+             {checkingDuplicate
+               ?<Loader2Icon className="h-4 w-4 animate-spin"/>
+               :null}
+
+             {checkingDuplicate
+               ?'Checking…'
+               :'Check for existing problem'}
+           </Button>
+
+         </div>
+
+         {duplicate&&(
+           <div className="mt-4 rounded-card border border-line bg-surface p-4">
+
+             <div className="flex items-start justify-between gap-3">
+
+               <div>
+                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-clay-600">
+                   Possible duplicate found · {duplicate.similarity}% match
+                 </p>
+
+                 <h3 className="mt-1 font-serif text-xl font-semibold text-ink">
+                   {duplicate.challenge.title}
+                 </h3>
+
+                 <p className="mt-1 text-sm text-ink-muted">
+                   {duplicate.challenge.city},{' '}
+                   {duplicate.challenge.district} ·{' '}
+                   {duplicate.challenge.supporters} support
+                   {duplicate.challenge.supporters===1?'':'s'}
+                 </p>
+               </div>
+
+               {duplicate.challenge.priority?.level==='high'&&(
+                 <span className="rounded-full bg-clay-100 px-3 py-1 text-xs font-bold text-clay-700">
+                   HIGH PRIORITY
+                 </span>
+               )}
+
+             </div>
+
+             <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+               {duplicate.challenge.description}
+             </p>
+
+             <div className="mt-4 flex flex-wrap gap-3">
+
+               <Button
+                 type="button"
+                 onClick={supportExisting}
+                 disabled={supportingDuplicate}
+               >
+                 <HeartIcon className="h-4 w-4"/>
+                 {supportingDuplicate
+                   ?'Supporting…'
+                   :'Support this problem instead'}
+               </Button>
+
+               <Button
+                 type="button"
+                 variant="secondary"
+                 onClick={()=>
+                   navigate(
+                     `/citizen/submissions/${duplicate.challenge.id}`
+                   )
+                 }
+               >
+                 Open existing problem
+               </Button>
+
+             </div>
+           </div>
+         )}
+
+       </div>
+
+       {error&&(
+         <div role="alert">
+           <FieldError>{error}</FieldError>
+         </div>
+       )}
+
+       <Button
+         type="submit"
+         size="lg"
+         disabled={pending}
+       >
+         {pending&&(
+           <Loader2Icon className="h-4 w-4 animate-spin"/>
+         )}
+
+         {pending
+           ?'Submitting…'
+           :'Submit for Admin approval'}
+       </Button>
+
+     </form>
+   </div>
+ );
 }
