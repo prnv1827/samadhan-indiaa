@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { Role, User } from '../types';
 
 interface AuthValue { user: User | null; loading: boolean; signIn: (email: string, password: string) => Promise<User>; signUp: (data: {name:string;email:string;password:string;role:Role;organization?:string;state?:string}) => Promise<User>; signOut: () => Promise<void>; }
-const ADMIN_EMAIL='admin@samadhan.local'; const ADMIN_PASSWORD='admin123'; const STORAGE_VERSION='3';
+const ADMIN_EMAIL='admin@samadhan.local'; const ADMIN_PASSWORD='adminn123'; const STORAGE_VERSION='3';
 const AuthContext=createContext<AuthValue|null>(null);
 
 async function api<T>(url:string, options:RequestInit={}):Promise<T>{const r=await fetch(url,options);const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'Request failed');return data;}
